@@ -58,6 +58,7 @@ namespace Chip8Core {
         private Tuple<InstructionType, short> DecodeInstruction(short instruction) {
             //2-step rocket. First decode the leading byte, then check sub-cases
             short leadingByte = (short)(instruction & ((ushort)0b11110000_00000000));
+            return null; //TODO: return somethings sensible
         }
 
         /// <summary>
