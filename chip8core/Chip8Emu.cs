@@ -9,8 +9,8 @@ namespace Chip8Core {
         //The Chip-8 language is capable of accessing up to 4KB (4,096 bytes) of RAM, from location 0x000 (0) to 0xFFF (4095).
         private const int RAMSizeInBytes = 4096;
         //The first 512 bytes, from 0x000 to 0x1FF, are where the original interpreter was located, and should not be used by programs.
-        private const short ProgramStart = 512;
-        private const short ETI660ProgramStart = 1536;
+        private const ushort ProgramStart = 512;
+        private const ushort ETI660ProgramStart = 1536;
 
         //Registers         
         private byte[] registers = new byte[NumberOfGeneralPurposeRegisters];
@@ -20,8 +20,8 @@ namespace Chip8Core {
         private byte delay_timer = new byte();
         private byte sound_timer = new byte();
         private byte stack_pointer = new byte();
-        private short[] stack = new short[MaxStackDepth];
-        private short program_counter = new short();
+        private ushort[] stack = new ushort[MaxStackDepth];
+        private ushort program_counter = new ushort();
 
         private byte[] memory = new byte[RAMSizeInBytes];
 
@@ -51,14 +51,8 @@ namespace Chip8Core {
         }
 
         private void ProcessInstruction() {
-            short instruction = ReadInstruction();
-            DecodeInstruction(instruction);
-        }
-
-        private Tuple<InstructionType, short> DecodeInstruction(short instruction) {
-            //2-step rocket. First decode the leading byte, then check sub-cases
-            short leadingByte = (short)(instruction & ((ushort)0b11110000_00000000));
-            return null; //TODO: return somethings sensible
+            Instruction instruction = GetInstruction();
+           // DecodeInstruction(instruction);
         }
 
         /// <summary>
@@ -66,8 +60,8 @@ namespace Chip8Core {
         /// </summary>
         /// <returns>The current instruction the PC points at.</returns>
         /// <remarks>All instructions are 2 bytes long and are stored most-significant-byte first.</remarks>
-        private short ReadInstruction() {
-            return (short)(((int)memory[program_counter] << 8) + (int)memory[program_counter + 1]);
+        private Instruction GetInstruction() {
+            return new Instruction((ushort)(((int)memory[program_counter] << 8) + (int)memory[program_counter + 1]));
         }
     }
 }
