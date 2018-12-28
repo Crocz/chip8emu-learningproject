@@ -5,11 +5,11 @@ using System.Text;
 namespace Chip8Core
 {
     /// <summary>
-    /// Chip8 instructions
+    /// Chip8 instruction types
     /// </summary>
-    public enum Instruction
+    public enum InstructionType
     {
-        //notes: Instruction names & comments copied from: http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
+        //notes: Instruction type names & comments copied from Cowgod's Chip-8 Technical Reference v1.0, retreived from http://devernay.free.fr/hacks/chip8/C8TECH10.HTM
 
         /// <summary>
         /// Jump to a machine code routine at nnn. *This instruction is only used on the old computers on which Chip-8 was originally implemented. It is ignored by modern interpreters.*
@@ -152,5 +152,7 @@ namespace Chip8Core
         /// </summary>
         LD_Vx_I,
     }
+
+    
 }
 

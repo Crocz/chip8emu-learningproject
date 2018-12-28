@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace chip8core {
+namespace Chip8Core {
     public sealed class Chip8Emu {
         //Chip-8 has 16 general purpose 8-bit registers,
         private const int NumberOfGeneralPurposeRegisters = 16;
@@ -44,11 +44,29 @@ namespace chip8core {
 
         private void EmulateStep() {
             //process current instuction
+            ProcessInstruction();
             //decrement counters
             //increment Program counter
             //sleep?
         }
 
+        private void ProcessInstruction() {
+            short instruction = ReadInstruction();
+            DecodeInstruction(instruction);
+        }
 
+        private Tuple<InstructionType, short> DecodeInstruction(short instruction) {
+            //2-step rocket. First decode the leading byte, then check sub-cases
+            short leadingByte = (short)(instruction & ((ushort)0b11110000_00000000));
+        }
+
+        /// <summary>
+        /// Returns the current instruction the PC points at.
+        /// </summary>
+        /// <returns>The current instruction the PC points at.</returns>
+        /// <remarks>All instructions are 2 bytes long and are stored most-significant-byte first.</remarks>
+        private short ReadInstruction() {
+            return (short)(((int)memory[program_counter] << 8) + (int)memory[program_counter + 1]);
+        }
     }
 }
