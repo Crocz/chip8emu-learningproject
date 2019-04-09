@@ -5,11 +5,15 @@ using System.Text;
 namespace Chip8Core {
     class Instruction {
         public InstructionType Type { get; }
-        public ushort Argument { get; }
+        private readonly ushort argument;
+        public ushort Address { get { return argument; } }
+        public byte XRegister { get { return GetXVal(argument); } }
+        public byte YRegister { get { return GetYVal(argument); } }
+        public byte KKValue { get { return GetKKVal(argument); } }
 
         public Instruction(ushort data) {
-            Type = DecodeInstruction(data);             
-            Argument = GetLow12BitsArgument(data);
+            Type = DecodeInstruction(data);
+            argument = GetLow12BitsArgument(data);
         }
 
         private InstructionType DecodeInstruction(ushort instruction) {                        
@@ -104,17 +108,21 @@ namespace Chip8Core {
 
             }            
         }
-        private static ushort GetHighestNibble(ushort instruction) => (ushort)(instruction >> 12);
-        private static ushort GetLowestNibble(ushort instruction) => (ushort)(instruction & 0x000F);
-        private static ushort GetLowerByte(ushort instruction) => (ushort)(instruction & 0x00FF);
 
-        private static ushort GetLow12BitsArgument(ushort instruction) => (ushort)(instruction & 0x0FFF);
-        
-        private static ushort GetXVal(ushort instruction) => (ushort)(instruction & 0x0F00);
+        private static byte GetHighestNibble(ushort instruction) => (byte)(instruction >> 12);
+        private static byte GetLowestNibble(ushort instruction) => (byte)(instruction & LowestNibbleMask);
+        private const ushort LowestNibbleMask = 0x000F;
+        private static byte GetLowerByte(ushort instruction) => (byte)(instruction & LowerByteMask);
+        private const ushort LowerByteMask = 0x000F;
+        private static ushort GetLow12BitsArgument(ushort instruction) => (ushort)(instruction & Low12BitsMask);
+        private const ushort Low12BitsMask = 0x0FFF;
 
-        private ushort GetYVal(ushort instruction) => (ushort)(instruction & 0x00F0);
 
-        private ushort GetKKVal(ushort instruction) => (ushort)(instruction & 0x00FF);
+        private static byte GetXVal(ushort arg) => (byte)((arg & 0x0F00) >> 8);
+
+        private byte GetYVal(ushort arg) => (byte)((arg & 0x00F0) >> 4);
+
+        private byte GetKKVal(ushort instruction) => GetLowerByte(instruction);
 
         private class UnrecognizedInstructionException : Exception {
             private ushort instruction;
