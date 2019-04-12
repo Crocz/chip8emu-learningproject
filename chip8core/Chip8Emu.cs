@@ -202,51 +202,61 @@ namespace Chip8Core {
         }
 
         private void XorRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[arg.XRegister] = (byte)(registers[arg.XRegister] ^ registers[arg.YRegister]);
         }
 
         private void AddRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            int temp = registers[arg.XRegister] + registers[arg.YRegister];
+            if(temp > 255)
+            {
+                temp = temp % 256;
+                registers[0xF] = 1;
+            }
+            else
+            {
+                registers[0xF] = 0;
+            }
+            registers[arg.XRegister] = (byte)temp;
         }
 
         private void AndRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[arg.XRegister] = (byte)(registers[arg.XRegister] & registers[arg.YRegister]);
         }
 
         private void LoadIAddr(Instruction arg) {
-            throw new NotImplementedException();
+            i_register = arg.Address;
         }
 
         private void OrRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[arg.XRegister] = (byte)(registers[arg.XRegister] | registers[arg.YRegister]);
         }
 
         private void LoadRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[arg.XRegister] = registers[arg.YRegister];
         }
 
         private void AddByte(Instruction arg) {
-            throw new NotImplementedException();
+            registers[arg.XRegister] += arg.KKValue;
         }
 
         private void LoadByte(Instruction arg) {
-            throw new NotImplementedException();
+            registers[arg.XRegister] = arg.KKValue;
         }
 
         private void SkipIfNotEqualRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            program_counter += registers[arg.XRegister] != registers[arg.YRegister] ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
         }
 
         private void SkipIfEqualRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            program_counter += registers[arg.XRegister] == registers[arg.YRegister] ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
         }
 
         private void SkipIfNotEqual(Instruction arg) {
-            throw new NotImplementedException();
+            program_counter += registers[arg.XRegister] != arg.KKValue ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
         }
 
         private void SkipIfEqual(Instruction arg) {
-            throw new NotImplementedException();
+            program_counter += registers[arg.XRegister] == arg.KKValue ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
         }
 
         private void LdVxI(Instruction arg) {
