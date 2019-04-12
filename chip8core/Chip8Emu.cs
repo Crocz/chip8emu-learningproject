@@ -178,23 +178,27 @@ namespace Chip8Core {
         }
 
         private void JumpV0(Instruction arg) {
-            throw new NotImplementedException();
+            program_counter = (ushort)(arg.Address + registers[0]);
         }
 
         private void ShlRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[0xF] = (registers[arg.XRegister] & 0b1000_0000) == 0b1000_0000 ? (byte)1 : (byte)0;
+            registers[arg.XRegister] *= 2;
         }
 
         private void SubXFromYRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[0xF] = registers[arg.YRegister] > registers[arg.XRegister] ? (byte)1 : (byte)0;
+            registers[arg.XRegister] = (byte)(registers[arg.YRegister] - registers[arg.XRegister]);
         }
 
         private void ShrRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[0xF] = (registers[arg.XRegister] & 0b0000_0001) == 0b0000_0001 ? (byte)1 : (byte)0;
+            registers[arg.XRegister] /= 2;
         }
 
         private void SubYFromXRegisters(Instruction arg) {
-            throw new NotImplementedException();
+            registers[0xF] = registers[arg.XRegister] > registers[arg.YRegister] ? (byte)1 : (byte)0;
+            registers[arg.XRegister] = (byte)(registers[arg.XRegister] - registers[arg.YRegister]);
         }
 
         private void XorRegisters(Instruction arg) {
