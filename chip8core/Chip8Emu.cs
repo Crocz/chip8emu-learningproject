@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Chip8Core {
     public sealed class Chip8Emu {
@@ -12,8 +14,7 @@ namespace Chip8Core {
         //The first 512 bytes, from 0x000 to 0x1FF, are where the original interpreter was located, and should not be used by programs.
         private const ushort ProgramStart = 512;
         private const ushort ETI660ProgramStart = 1536;
-        //The original implementation of the Chip-8 language used a 64x32-pixel monochrome display
-        private const ushort DisplayLineHeight = 32;
+        
         //Registers         
         private byte[] registers = new byte[NumberOfGeneralPurposeRegisters];
         //There is also a 16-bit register called I. This register is generally used to store memory addresses, so only the lowest (rightmost) 12 bits are usually used.
@@ -28,7 +29,7 @@ namespace Chip8Core {
         private ushort program_counter = new ushort();
 
         private byte[] memory = new byte[RAMSizeInBytes];
-        private UInt64[] display = new UInt64[DisplayLineHeight];
+        private IDisplay display = new Display();
 
         private bool done = false;
 
@@ -104,21 +105,18 @@ namespace Chip8Core {
             InstructionTable[instruction.Type].Invoke(instruction);
         }
 
-        private void DecodeInstruction(Instruction instruction) {
-            //todo: implementation
-        }
-
         private void SysAddr(Instruction arg) {
-            //ignore;
+            //ignored
+            return;
         }
 
         private void ClearScreen(Instruction argument) {
-            display = new UInt64[DisplayLineHeight];
+            display.Clear();
         }
 
         private void ReturnFromSubRoutine(Instruction argument) {
             if(stack_pointer == 0) {
-                throw new InvalidOperationException("Tried to return at stack depth 0");
+                throw new InvalidOperationException("Attempted to return at stack depth 0");
             }
             stack_pointer--;
             Jump(stack[stack_pointer]);
@@ -126,11 +124,11 @@ namespace Chip8Core {
 
         private void Call(Instruction arg) {
             if (stack_pointer == MaxStackDepth) {
-                throw new InvalidOperationException($"Tried to call at maximum depth ({MaxStackDepth}).");
+                throw new InvalidOperationException($"Attempted to call method at maximum depth ({MaxStackDepth}).");
             }
             stack[stack_pointer] = program_counter;
             stack_pointer++;
-            Jump(arg);
+            Jump(arg.Address);
         }
 
         private void Jump(Instruction arg) {
@@ -170,7 +168,17 @@ namespace Chip8Core {
         }
 
         private void Draw(Instruction arg) {
-            throw new NotImplementedException();
+
+            //var spriteData = memory.Skip(i_register).Take(arg.LowestNibble).ToList();
+            //for (byte i = 0; i < arg.LowestNibble; ++i)
+            //{
+            //    var lineData = display[ypos];
+            //    for(byte x = 0; x < sizeof(byte); ++x)
+            //    {
+            //        lineData[xpos + x]
+            //    }
+            //}
+           
         }
 
         private void SetRandom(Instruction arg) {

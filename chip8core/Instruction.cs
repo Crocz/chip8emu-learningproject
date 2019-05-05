@@ -6,10 +6,11 @@ namespace Chip8Core {
     class Instruction {
         public InstructionType Type { get; }
         private readonly ushort argument;
-        public ushort Address { get { return argument; } }
-        public byte XRegister { get { return GetXVal(argument); } }
-        public byte YRegister { get { return GetYVal(argument); } }
-        public byte KKValue { get { return GetKKVal(argument); } }
+        public ushort Address => argument;
+        public byte XRegister => GetXVal(argument);
+        public byte YRegister => GetYVal(argument);
+        public byte KKValue => GetKKVal(argument);
+        public byte LowestNibble => GetLowestNibble(argument);
 
         public Instruction(ushort data) {
             Type = DecodeInstruction(data);

@@ -1,7 +1,19 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
-namespace Chip8core
+namespace Chip8Core
 {
+
+    public class SpriteData
+    {
+        public byte[] Data { get; }
+
+        public SpriteData(Sprite spr)
+        {
+            Data = Sprites.sprites[spr];
+        }
+    }
 
     public enum Sprite
     {
@@ -10,9 +22,10 @@ namespace Chip8core
     /// <summary>
     /// Pre-defined sprites, representing hexadecimal digits 0 through F.
     /// </summary>
-    static class Sprites
+    public static class Sprites
     {
-        static readonly IReadOnlyDictionary<Sprite, byte[]> sprites = new Dictionary<Sprite, byte[]> { {        Sprite._0, new byte[] { 0b11110000,
+        public static BitArray[] AsBitArray(Sprite s) => sprites[s].Select(line => new BitArray(new[] { line }).Reverse()).ToArray();
+        internal static readonly IReadOnlyDictionary<Sprite, byte[]> sprites = new Dictionary<Sprite, byte[]> { {        Sprite._0, new byte[] { 0b11110000,
                                                                                                                                         0b10010000,
                                                                                                                                         0b10010000,
                                                                                                                                         0b10010000,
@@ -108,5 +121,18 @@ namespace Chip8core
                                                                                                                                         0b10000000,
                                                                                                                                         0b10000000, } },
         };
+
+        private static BitArray Reverse(this BitArray indata)
+        {
+            int mid = indata.Length / 2;
+            int length = indata.Length;
+            for (int i = 0; i < mid; ++i)
+            {
+                bool bit = indata[i];
+                indata[i] = indata[length - i - 1];
+                indata[length - i - 1] = bit;
+            }
+            return indata;
+        }
     }
 }
