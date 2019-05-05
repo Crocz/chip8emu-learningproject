@@ -41,14 +41,16 @@ namespace Chip8Core
         public bool Draw(ushort x, ushort y, BitArray[] spriteData)
         {
             bool flipped = false;
-            var xpos = (byte)(x % DisplayLineWidth);
-            var ypos = (byte)(y % DisplayLineHeight);
+            var xstartpos = (byte)(x % DisplayLineWidth);
+            var ystartpos = (byte)(y % DisplayLineHeight);
             for(int i = 0; i < spriteData.Length; ++i)
             {
+                var ycoord = (ystartpos + i) % DisplayLineHeight;
                 for (int j = 0; j < spriteData[i].Length; ++j) {
-                    var oldval = displayData[ypos + i].Get(j);
+                    var xcoord = (xstartpos + j) % DisplayLineWidth;
+                    var oldval = displayData[ycoord].Get(xcoord);
                     var newval = oldval ^ spriteData[i].Get(j);
-                    displayData[ypos + i].Set(j, newval);
+                    displayData[ycoord].Set(xcoord, newval);
                     if(!flipped && oldval && !newval)
                     {
                         flipped = true;
