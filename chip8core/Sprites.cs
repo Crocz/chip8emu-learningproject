@@ -25,6 +25,7 @@ namespace Chip8Core
     public static class Sprites
     {
         public static BitArray[] AsBitArray(Sprite s) => sprites[s].Select(line => new BitArray(new[] { line }).Reverse()).ToArray();
+        public static IEnumerable<byte[]> Data => sprites.Values;
         internal static readonly IReadOnlyDictionary<Sprite, byte[]> sprites = new Dictionary<Sprite, byte[]> { {        Sprite._0, new byte[] { 0b11110000,
                                                                                                                                         0b10010000,
                                                                                                                                         0b10010000,

@@ -5,6 +5,20 @@ using System.Linq;
 
 namespace Chip8Core {
     public sealed class Chip8Emu {
+        private readonly IEmulatorHost Host;
+
+        private int newKeysPressed; //incoming keypresses
+        private int newKeysReleased; //incoming keyreleases
+
+        private int keysPressed; //keypresses this emustep
+        private int keysReleased; //keyreleases this emustep
+
+        private static readonly int chip8CpuClockSpeed = 540;        
+        private int cpuTicksSinceLastTimerDecrease;
+
+        private bool waitState; //an instruction to wait until keypress has triggered. Do not manipulate counters while true.
+        private byte keyPressStoreVar;
+
         //Chip-8 has 16 general purpose 8-bit registers,
         private const byte NumberOfGeneralPurposeRegisters = 16;
         //Chip-8 allows for up to 16 levels of nested subroutines.
@@ -22,6 +36,10 @@ namespace Chip8Core {
         private readonly IReadOnlyDictionary<InstructionType, Action<Instruction>> InstructionTable;
         private Random RandomSource = new Random(0); //todo: consider seed value for better randomization
 
+        //We should store the sprites somewhere in the interpreter area; 0x000 to 0x200 (512 decimal)
+        private int spriteStorageStart = 0;
+        private const int spriteSizeInBytes = 5;
+
         private byte delay_timer = new byte();
         private byte sound_timer = new byte();
         private byte stack_pointer = new byte();
@@ -33,53 +51,29 @@ namespace Chip8Core {
 
         private bool done = false;
 
-        public Chip8Emu() {
+        public Chip8Emu(IEmulatorHost host) {            
             InstructionTable = GetInstructionTable();
+            Host = host;
         }
 
-        private IReadOnlyDictionary<InstructionType, Action<Instruction>> GetInstructionTable() {
-            return new Dictionary<InstructionType, Action<Instruction>> {
-                {InstructionType.SYS_addr, (arg) => SysAddr(arg) },
-                {InstructionType.CLS, (arg) => ClearScreen(arg) },
-                {InstructionType.RET, (arg) => ReturnFromSubRoutine(arg) },
-                {InstructionType.JP_addr, (arg) => Jump(arg) },
-                {InstructionType.CALL_addr, (arg) => Call(arg) },
-                {InstructionType.SE_Vx_byte, (arg) => SkipIfEqual(arg) },
-                {InstructionType.SNE_Vx_byte, (arg) => SkipIfNotEqual(arg) },
-                {InstructionType.SE_Vx_Vy, (arg) => SkipIfEqualRegisters(arg) },
-                {InstructionType.SNE_Vx_Vy, (arg) => SkipIfNotEqualRegisters(arg) },
-                {InstructionType.LD_Vx_byte, (arg) => LoadByte(arg) },
-                {InstructionType.ADD_Vx_byte, (arg) => AddByte(arg) },
-                {InstructionType.LD_Vx_Vy, (arg) => LoadRegisters(arg) },
-                {InstructionType.OR_Vx_Vy, (arg) => OrRegisters(arg) },
-                {InstructionType.AND_Vx_Vy, (arg) => AndRegisters(arg) },
-                {InstructionType.XOR_Vx_Vy, (arg) => XorRegisters(arg) },
-                {InstructionType.ADD_Vx_Vy, (arg) => AddRegisters(arg) },
-                {InstructionType.SUB_Vx_Vy, (arg) => SubYFromXRegisters(arg) },
-                {InstructionType.SHR_Vx_Vy, (arg) => ShrRegisters(arg) },
-                {InstructionType.SUBN_Vx_Vy, (arg) => SubXFromYRegisters(arg) },
-                {InstructionType.SHL_Vx_Vy, (arg) => ShlRegisters(arg) },                
-                {InstructionType.LD_I_addr, (arg) => LoadIAddr(arg) },
-                {InstructionType.JP_V0_addr, (arg) => JumpV0(arg) },
-                {InstructionType.RND_Vx_byte, (arg) => SetRandom(arg) },
-                {InstructionType.DRW_Vx_Vy_nibble, (arg) => Draw(arg) },
-                {InstructionType.SKP_Vx, (arg) => SkipIfPressed(arg) },
-                {InstructionType.SKNP_Vx, (arg) => SkipIfNotPressed(arg) },
-                {InstructionType.LD_Vx_DT, (arg) => LoadDelayTimer(arg) },
-                {InstructionType.LD_Vx_K, (arg) => WaitKeyPressThenStore(arg) },
-                {InstructionType.LD_DT_Vx, (arg) => SetDelayTimer(arg) },
-                {InstructionType.LD_ST_Vx, (arg) => SetSoundTimer(arg) },
-                {InstructionType.ADD_I_Vx, (arg) => AddI(arg) },
-                {InstructionType.LD_F_Vx, (arg) => LdFVx(arg) },
-                {InstructionType.LD_B_Vx, (arg) => LdBVx(arg) },
-                {InstructionType.LD_I_Vx, (arg) => LdIVx(arg) },
-                {InstructionType.LD_Vx_I, (arg) => LdVxI(arg) }
-             };
+        private void LoadSpritesIntoMemory()
+        {
+            int i = 0;
+            foreach(byte[] sprite in Sprites.Data) {
+                Buffer.BlockCopy(sprite, 0, memory, spriteStorageStart + spriteSizeInBytes * i, spriteSizeInBytes);                
+                i++;
+            }
         }
+
+        //private void SubscribeEvents()
+        //{
+        //    Host.KeyStateUpdated += this.ReadKeyState;
+        //}
 
         public int Run(byte[] rom) {
             //determine which speed to run rom at
             //determine if ETI 660 computer
+            LoadSpritesIntoMemory();
             Load(rom);
             program_counter = ProgramStart;
             while (!done) {
@@ -93,11 +87,66 @@ namespace Chip8Core {
         }
 
         private void EmulateStep() {
-            //process current instuction
+            ReadInput();
             ProcessInstruction();
-            //decrement counters
-            //increment Program counter
-            //sleep?
+            if (!waitState)
+            {
+                ManipulateCounters();
+            }
+            else
+            {
+                if (keysPressed != 0)
+                {
+                    waitState = false;
+                    registers[keyPressStoreVar] = DetermineKeyPressValue(keysPressed);
+                }
+            }
+            //sleep if ahead
+        }
+
+        /// <summary>
+        /// Update keypresses this emustep with incoming keypresses, and reset incoming keypresses.
+        /// </summary>
+        private void ReadInput()
+        {
+            keysPressed = newKeysPressed;
+            keysReleased = newKeysReleased;
+            newKeysPressed = 0;
+            newKeysReleased = 0;
+        }
+
+        private void ManipulateCounters()
+        {
+            IncreaseProgramCounter();
+            cpuTicksSinceLastTimerDecrease++;
+            if(cpuTicksSinceLastTimerDecrease >= multFactor)
+            {
+                cpuTicksSinceLastTimerDecrease = 0;
+                if(delay_timer > 0)
+                {
+                    delay_timer--;
+                }
+                if(sound_timer > 0)
+                {
+                    sound_timer--;
+                }
+            }
+            
+        }
+
+        public void OnKeyPress(KeyMasks key)
+        {            
+            newKeysPressed &= (int)key;            
+        }
+
+        public void OnKeyRelease(KeyMasks key)
+        {            
+            newKeysReleased &= (int)key;         
+        }
+
+        private void IncreaseProgramCounter()
+        {
+            program_counter += 2;
         }
 
         private void ProcessInstruction() {
@@ -152,7 +201,26 @@ namespace Chip8Core {
         }
 
         private void WaitKeyPressThenStore(Instruction arg) {
-            throw new NotImplementedException();
+            waitState = true;
+            keyPressStoreVar = arg.XRegister;
+        }
+
+        /// <summary>
+        /// Returns the value of the first key pressed, going from 0 upwards. Cannot press half a key.
+        /// </summary>
+        /// <returns>Value [0-15]</returns>
+        private byte DetermineKeyPressValue(int keysPressed)
+        {
+            if(keysPressed == 0)
+            {
+                throw new ArgumentException("Must be at least one pressed key");
+            }
+            byte x = 0;
+            while(((keysPressed >> x) & 0b00000000_00000000_00000000_00000001) == 0)
+            {
+                x++;
+            }
+            return x;
         }
 
         private void LoadDelayTimer(Instruction arg) {
@@ -160,25 +228,31 @@ namespace Chip8Core {
         }
 
         private void SkipIfNotPressed(Instruction arg) {
-            throw new NotImplementedException();
+            var mask = Keypad.ByteToKeymask(registers[arg.XRegister]);
+            if((keysPressed & (int)mask) == 0)
+            {
+                IncreaseProgramCounter();
+            }
         }
 
         private void SkipIfPressed(Instruction arg) {
-            throw new NotImplementedException();
+            var mask = Keypad.ByteToKeymask(registers[arg.XRegister]);
+            if ((keysPressed & (int)mask) != 0)
+            {
+                IncreaseProgramCounter();
+            }
         }
-
-        private void Draw(Instruction arg) {
-
-            //var spriteData = memory.Skip(i_register).Take(arg.LowestNibble).ToList();
-            //for (byte i = 0; i < arg.LowestNibble; ++i)
+        
+        private void Draw(Instruction arg) {            
+            byte[] sprite = new byte[arg.LowestNibble];
+            //for (int i = 0; i < arg.LowestNibble; ++i)
             //{
-            //    var lineData = display[ypos];
-            //    for(byte x = 0; x < sizeof(byte); ++x)
-            //    {
-            //        lineData[xpos + x]
-            //    }
+            //    sprite[i] = new BitArray(new[] { memory[i_register + i] });
             //}
-           
+            Buffer.BlockCopy(memory, i_register, sprite, 0, arg.LowestNibble);
+            var sprajt = sprite.Select(b => new BitArray(new[] { b })).ToArray();
+            registers[15] = display.Draw(registers[arg.XRegister], registers[arg.YRegister], sprajt) ? (byte)1 : (byte)0;
+            Host.UpdateDisplay(display.GetCurrentPixels());
         }
 
         private void SetRandom(Instruction arg) {
@@ -252,35 +326,58 @@ namespace Chip8Core {
         }
 
         private void SkipIfNotEqualRegisters(Instruction arg) {
-            program_counter += registers[arg.XRegister] != registers[arg.YRegister] ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
+            if (registers[arg.XRegister] != registers[arg.YRegister])
+            {
+                IncreaseProgramCounter();
+            }
         }
 
         private void SkipIfEqualRegisters(Instruction arg) {
-            program_counter += registers[arg.XRegister] == registers[arg.YRegister] ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
+            if(registers[arg.XRegister] == registers[arg.YRegister])
+            {
+                IncreaseProgramCounter();
+            }
         }
 
         private void SkipIfNotEqual(Instruction arg) {
-            program_counter += registers[arg.XRegister] != arg.KKValue ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
+            if(registers[arg.XRegister] != arg.KKValue)
+            {
+                IncreaseProgramCounter();
+            }
         }
 
         private void SkipIfEqual(Instruction arg) {
-            program_counter += registers[arg.XRegister] == arg.KKValue ? (ushort)1 : (ushort)0; //todo: maybe increase by 2?
+            if(registers[arg.XRegister] == arg.KKValue)
+            {
+                IncreaseProgramCounter();
+            }
         }
 
         private void LdVxI(Instruction arg) {
-            throw new NotImplementedException();
+            for(int i = 0; i < arg.XRegister; ++i)
+            {
+                registers[i] = memory[i_register + i];
+            }            
         }
 
         private void LdIVx(Instruction arg) {
-            throw new NotImplementedException();
+            for (int i = 0; i < arg.XRegister; ++i)
+            {
+                memory[i_register + i] = registers[i];
+            }
         }
 
         private void LdBVx(Instruction arg) {
-            throw new NotImplementedException();
+            int value = registers[arg.XRegister];
+            memory[i_register] = (byte)(value / (byte)100);
+            value = value % 100;
+            memory[i_register + 1] = (byte)(value / (byte)10);
+            value = value % 10;
+            memory[i_register + 2] = (byte)value;
         }
 
         private void LdFVx(Instruction arg) {
-            throw new NotImplementedException();
+            i_register = (ushort)(spriteStorageStart * spriteSizeInBytes * registers[arg.XRegister]);
         }
 
         /// <summary>
@@ -290,6 +387,47 @@ namespace Chip8Core {
         /// <remarks>All instructions are 2 bytes long and are stored most-significant-byte first.</remarks>
         private Instruction GetInstruction() {
             return new Instruction((ushort)(((int)memory[program_counter] << 8) + (int)memory[program_counter + 1]));
+        }
+
+        private IReadOnlyDictionary<InstructionType, Action<Instruction>> GetInstructionTable()
+        {
+            return new Dictionary<InstructionType, Action<Instruction>> {
+                {InstructionType.SYS_addr, (arg) => SysAddr(arg) },
+                {InstructionType.CLS, (arg) => ClearScreen(arg) },
+                {InstructionType.RET, (arg) => ReturnFromSubRoutine(arg) },
+                {InstructionType.JP_addr, (arg) => Jump(arg) },
+                {InstructionType.CALL_addr, (arg) => Call(arg) },
+                {InstructionType.SE_Vx_byte, (arg) => SkipIfEqual(arg) },
+                {InstructionType.SNE_Vx_byte, (arg) => SkipIfNotEqual(arg) },
+                {InstructionType.SE_Vx_Vy, (arg) => SkipIfEqualRegisters(arg) },
+                {InstructionType.SNE_Vx_Vy, (arg) => SkipIfNotEqualRegisters(arg) },
+                {InstructionType.LD_Vx_byte, (arg) => LoadByte(arg) },
+                {InstructionType.ADD_Vx_byte, (arg) => AddByte(arg) },
+                {InstructionType.LD_Vx_Vy, (arg) => LoadRegisters(arg) },
+                {InstructionType.OR_Vx_Vy, (arg) => OrRegisters(arg) },
+                {InstructionType.AND_Vx_Vy, (arg) => AndRegisters(arg) },
+                {InstructionType.XOR_Vx_Vy, (arg) => XorRegisters(arg) },
+                {InstructionType.ADD_Vx_Vy, (arg) => AddRegisters(arg) },
+                {InstructionType.SUB_Vx_Vy, (arg) => SubYFromXRegisters(arg) },
+                {InstructionType.SHR_Vx_Vy, (arg) => ShrRegisters(arg) },
+                {InstructionType.SUBN_Vx_Vy, (arg) => SubXFromYRegisters(arg) },
+                {InstructionType.SHL_Vx_Vy, (arg) => ShlRegisters(arg) },
+                {InstructionType.LD_I_addr, (arg) => LoadIAddr(arg) },
+                {InstructionType.JP_V0_addr, (arg) => JumpV0(arg) },
+                {InstructionType.RND_Vx_byte, (arg) => SetRandom(arg) },
+                {InstructionType.DRW_Vx_Vy_nibble, (arg) => Draw(arg) },
+                {InstructionType.SKP_Vx, (arg) => SkipIfPressed(arg) },
+                {InstructionType.SKNP_Vx, (arg) => SkipIfNotPressed(arg) },
+                {InstructionType.LD_Vx_DT, (arg) => LoadDelayTimer(arg) },
+                {InstructionType.LD_Vx_K, (arg) => WaitKeyPressThenStore(arg) },
+                {InstructionType.LD_DT_Vx, (arg) => SetDelayTimer(arg) },
+                {InstructionType.LD_ST_Vx, (arg) => SetSoundTimer(arg) },
+                {InstructionType.ADD_I_Vx, (arg) => AddI(arg) },
+                {InstructionType.LD_F_Vx, (arg) => LdFVx(arg) },
+                {InstructionType.LD_B_Vx, (arg) => LdBVx(arg) },
+                {InstructionType.LD_I_Vx, (arg) => LdIVx(arg) },
+                {InstructionType.LD_Vx_I, (arg) => LdVxI(arg) }
+             };
         }
     }
 }
