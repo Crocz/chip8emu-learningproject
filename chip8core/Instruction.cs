@@ -3,21 +3,25 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace Chip8Core {
-    class Instruction {
+    public class Instruction {
         public InstructionType Type { get; }
         private readonly ushort argument;
         public ushort Address => argument;
         public byte XRegister => GetXVal(argument);
         public byte YRegister => GetYVal(argument);
         public byte KKValue => GetKKVal(argument);
+        public byte HighestNibble => GetHighestNibble(argument);
         public byte LowestNibble => GetLowestNibble(argument);
 
-        public Instruction(ushort data) {
-            Type = DecodeInstruction(data);
-            argument = GetLow12BitsArgument(data);
+        public Instruction(ushort data) : this(DecodeInstruction(data), GetLow12BitsArgument(data)) { }
+
+        public Instruction(InstructionType type, ushort arg)
+        {
+            Type = type;
+            argument = arg;
         }
 
-        private InstructionType DecodeInstruction(ushort instruction) {                        
+        private static InstructionType DecodeInstruction(ushort instruction) {                        
             switch (GetHighestNibble(instruction)) {
                 case 0x0: //SYS, CLS, RET
                     switch (instruction) {
@@ -114,7 +118,7 @@ namespace Chip8Core {
         private static byte GetLowestNibble(ushort instruction) => (byte)(instruction & LowestNibbleMask);
         private const ushort LowestNibbleMask = 0x000F;
         private static byte GetLowerByte(ushort instruction) => (byte)(instruction & LowerByteMask);
-        private const ushort LowerByteMask = 0x000F;
+        private const ushort LowerByteMask = 0x00FF;
         private static ushort GetLow12BitsArgument(ushort instruction) => (ushort)(instruction & Low12BitsMask);
         private const ushort Low12BitsMask = 0x0FFF;
 

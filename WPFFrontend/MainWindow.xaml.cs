@@ -25,7 +25,9 @@ namespace WPFFrontend
         private static readonly int pixelside = 20;
         private SolidColorBrush Black = new SolidColorBrush(Colors.Black);
         private SolidColorBrush White = new SolidColorBrush(Colors.White);
+        private SolidColorBrush Pink = new SolidColorBrush(Colors.HotPink);
         private readonly Rectangle[] screen = new Rectangle[xsize * ysize];
+        private readonly Random r = new Random(1);
         public MainWindow()
         {
             InitializeComponent();
@@ -39,12 +41,13 @@ namespace WPFFrontend
         }
 
         public void InitializeScreen()
-        {
+        {            
             for (int ypos = 0; ypos < ysize; ++ypos)
             {
                 for (int xpos = 0; xpos < xsize; ++xpos)
                 {
-                    var rect = new Rectangle() { Width = pixelside, Height = pixelside, Fill = Black };
+                    var color = new Color() { R = (byte)r.Next(byte.MaxValue), G = (byte)r.Next(byte.MaxValue), B = (byte)r.Next(byte.MaxValue), A = 128 };                                        
+                    var rect = new Rectangle() { Width = pixelside, Height = pixelside, Fill = new SolidColorBrush(color) };
                     Canvas.SetLeft(rect, pixelside * xpos);
                     Canvas.SetTop(rect, pixelside * ypos);                    
                     screen[ypos * xsize + xpos] = rect;
@@ -53,11 +56,28 @@ namespace WPFFrontend
             }
         }
 
+        private BitArray[] GetRandomScreenData()
+        {
+            var lines = new BitArray[32];
+            for (int linenum = 0; linenum < lines.Length; ++linenum)
+            {
+                var line = new BitArray(64);
+                for (int x = 0; x < line.Length; ++x)
+                {
+                    line[x] = r.Next(0, 2) == 0 ? false : true;
+                }
+                lines[linenum] = line;
+            }
+            return lines;
+        }
+
         private void OnButtonKeyDown(object sender, KeyEventArgs e)
         {
             if (Chip8Keys.Contains(e.Key))
             {
                 emu.OnKeyPress(KeyToInt(e.Key));
+                //var lines = GetRandomScreenData();
+                //UpdateDisplay(lines);
             }
         }
 
@@ -107,7 +127,7 @@ namespace WPFFrontend
                     int x = 0;
                     while (x < bitarray.Length)
                     {
-                        screen[i].Fill = bitarray[x] ? White : Black;
+                        screen[i + x].Fill = bitarray[x] ? White : Black;
                         ++x;
                     }
                     i += x;

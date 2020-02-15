@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Chip8Core {
     public sealed class Chip8Emu {
@@ -13,7 +16,10 @@ namespace Chip8Core {
         private int keysPressed; //keypresses this emustep
         private int keysReleased; //keyreleases this emustep
 
-        private static readonly int chip8CpuClockSpeed = 540;        
+        private static readonly int chip8CpuClockSpeedHz = 540;
+        private static readonly int timerSpeedHz = 60;
+        private static readonly Stopwatch stopwatch = new Stopwatch();
+        private static int ticks = 0;
         private int cpuTicksSinceLastTimerDecrease;
 
         private bool waitState; //an instruction to wait until keypress has triggered. Do not manipulate counters while true.
@@ -76,9 +82,11 @@ namespace Chip8Core {
             LoadSpritesIntoMemory();
             Load(rom);
             program_counter = ProgramStart;
+            stopwatch.Start();
             while (!done) {
                 EmulateStep();
             }
+            stopwatch.Stop();
             return 0;
         }
 
@@ -87,10 +95,11 @@ namespace Chip8Core {
         }
 
         private void EmulateStep() {
-            ReadInput();
-            ProcessInstruction();
+            ticks++;
+            ReadInput();            
             if (!waitState)
             {
+                ProcessInstruction();
                 ManipulateCounters();
             }
             else
@@ -102,6 +111,10 @@ namespace Chip8Core {
                 }
             }
             //sleep if ahead
+            while(ticks > (stopwatch.Elapsed.TotalSeconds * chip8CpuClockSpeedHz))
+            {
+                Task.Delay(10).Wait();
+            }
         }
 
         /// <summary>
@@ -117,9 +130,9 @@ namespace Chip8Core {
 
         private void ManipulateCounters()
         {
-            IncreaseProgramCounter();
+            //IncreaseProgramCounter();
             cpuTicksSinceLastTimerDecrease++;
-            if(cpuTicksSinceLastTimerDecrease >= multFactor)
+            if(cpuTicksSinceLastTimerDecrease >= (chip8CpuClockSpeedHz / timerSpeedHz))
             {
                 cpuTicksSinceLastTimerDecrease = 0;
                 if(delay_timer > 0)
@@ -136,12 +149,12 @@ namespace Chip8Core {
 
         public void OnKeyPress(KeyMasks key)
         {            
-            newKeysPressed &= (int)key;            
+            newKeysPressed |= (int)key;            
         }
 
         public void OnKeyRelease(KeyMasks key)
         {            
-            newKeysReleased &= (int)key;         
+            newKeysReleased |= (int)key;         
         }
 
         private void IncreaseProgramCounter()
@@ -152,6 +165,10 @@ namespace Chip8Core {
         private void ProcessInstruction() {
             Instruction instruction = GetInstruction();
             InstructionTable[instruction.Type].Invoke(instruction);
+            if(instruction.Type != InstructionType.JP_addr && instruction.Type != InstructionType.JP_V0_addr && instruction.Type != InstructionType.CALL_addr)
+            {
+                IncreaseProgramCounter();
+            }
         }
 
         private void SysAddr(Instruction arg) {
@@ -161,6 +178,7 @@ namespace Chip8Core {
 
         private void ClearScreen(Instruction argument) {
             display.Clear();
+            Host.UpdateDisplay(display.GetCurrentPixels());
         }
 
         private void ReturnFromSubRoutine(Instruction argument) {
@@ -377,7 +395,7 @@ namespace Chip8Core {
         }
 
         private void LdFVx(Instruction arg) {
-            i_register = (ushort)(spriteStorageStart * spriteSizeInBytes * registers[arg.XRegister]);
+            i_register = (ushort)(spriteStorageStart + spriteSizeInBytes * registers[arg.XRegister]);
         }
 
         /// <summary>
