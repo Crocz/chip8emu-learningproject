@@ -265,8 +265,25 @@ namespace Chip8Core {
             //}
             Buffer.BlockCopy(memory, i_register, sprite, 0, arg.LowestNibble);
             var sprajt = sprite.Select(b => new BitArray(new[] { b })).ToArray();
+            foreach(BitArray b in sprajt)
+            {
+                Reverse(b);
+            }
             registers[15] = display.Draw(registers[arg.XRegister], registers[arg.YRegister], sprajt) ? (byte)1 : (byte)0;
             Host.UpdateDisplay(display.GetCurrentPixels());
+        }
+
+        private void Reverse(BitArray array)
+        {
+            int length = array.Length;
+            int mid = (length / 2);
+
+            for (int i = 0; i < mid; i++)
+            {
+                bool bit = array[i];
+                array[i] = array[length - i - 1];
+                array[length - i - 1] = bit;
+            }
         }
 
         private void SetRandom(Instruction arg) {
