@@ -1,4 +1,5 @@
 ﻿using Chip8Core;
+using Microsoft.Win32;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -16,33 +17,33 @@ namespace WPFFrontend
     /// Interaction logic for MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window, IEmulatorHost
-    {
-        private int hits;
-        private readonly Chip8Core.Chip8Emu emu;
+    {        
+        private readonly Chip8Emu emu;
         private readonly HashSet<Key> Chip8Keys = new HashSet<Key> { Key.NumPad0, Key.NumPad1, Key.NumPad2, Key.NumPad3, Key.NumPad4, Key.NumPad5, Key.NumPad6, Key.NumPad7, Key.NumPad8, Key.NumPad9, Key.Divide, Key.Multiply, Key.Subtract, Key.Add, Key.OemComma, Key.Enter };
         private static readonly int xsize = 64;
         private static readonly int ysize = 32;
         private static readonly int pixelside = 20;
         private SolidColorBrush Black = new SolidColorBrush(Colors.Black);
-        private SolidColorBrush White = new SolidColorBrush(Colors.White);
-        private SolidColorBrush Pink = new SolidColorBrush(Colors.HotPink);
-        private readonly Rectangle[] screen = new Rectangle[xsize * ysize];
-        private readonly Random r = new Random(1);
+        private SolidColorBrush White = new SolidColorBrush(Colors.White);        
+        private readonly Rectangle[] screen = new Rectangle[xsize * ysize];        
         public MainWindow()
         {
             InitializeComponent();
             InitializeScreen();
-            emu = new Chip8Emu(this);
-            //string path = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Documents\chip8roms\Tetris [Fran Dachille, 1991].ch8");
-            string path = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Documents\chip8roms\test_opcode.ch8");
-            byte[] rom = System.IO.File.ReadAllBytes(path);            
-            this.KeyDown += new KeyEventHandler(OnButtonKeyDown);
-            this.KeyUp += new KeyEventHandler(OnButtonKeyUp);            
-            new Task(() => emu.Run(rom)).Start();            
+            emu = new Chip8Emu(this);            
+            OpenFileDialog openFileDialog = new OpenFileDialog();
+            if (openFileDialog.ShowDialog() == true) {
+                byte[] rom = System.IO.File.ReadAllBytes(openFileDialog.FileName);
+                KeyDown += new KeyEventHandler(OnButtonKeyDown);
+                KeyUp += new KeyEventHandler(OnButtonKeyUp);
+                new Task(() => emu.Run(rom)).Start();
+            }
+     
         }
 
         public void InitializeScreen()
-        {            
+        {
+            Random r = new Random(1);
             for (int ypos = 0; ypos < ysize; ++ypos)
             {
                 for (int xpos = 0; xpos < xsize; ++xpos)
@@ -57,28 +58,11 @@ namespace WPFFrontend
             }
         }
 
-        private BitArray[] GetRandomScreenData()
-        {
-            var lines = new BitArray[32];
-            for (int linenum = 0; linenum < lines.Length; ++linenum)
-            {
-                var line = new BitArray(64);
-                for (int x = 0; x < line.Length; ++x)
-                {
-                    line[x] = r.Next(0, 2) == 0 ? false : true;
-                }
-                lines[linenum] = line;
-            }
-            return lines;
-        }
-
         private void OnButtonKeyDown(object sender, KeyEventArgs e)
         {
             if (Chip8Keys.Contains(e.Key))
             {
                 emu.OnKeyPress(KeyToInt(e.Key));
-                //var lines = GetRandomScreenData();
-                //UpdateDisplay(lines);
             }
         }
 
@@ -118,10 +102,6 @@ namespace WPFFrontend
         {
             if (screen[0].Dispatcher.Thread == Thread.CurrentThread)
             {
-                if (hits < int.MaxValue)
-                {
-                    hits++;
-                }
                 int i = 0;
                 foreach (var bitarray in pixels)
                 {
