@@ -1,5 +1,4 @@
-﻿using Chip8Core;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace Chip8Core.Test
 {

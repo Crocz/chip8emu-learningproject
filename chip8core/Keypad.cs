@@ -1,26 +1,9 @@
 ﻿using System;
-using System.Windows.Input;
 
 namespace Chip8Core
 {
-    public interface IKeypad
+    public static class Keypad
     {
-        int GetState();
-    }
-
-    public class Keypad : IKeypad
-    {
-
-        public Keypad() { }
-
-        //public Keypad
-        public int GetState()
-        {
-            int ret = 0;
-            
-            return 0;
-        }
-
         public static KeyMasks ByteToKeymask(byte b)
         {
             switch (b)
@@ -43,15 +26,6 @@ namespace Chip8Core
                 case 15: return KeyMasks.F;
                 default: throw new InvalidOperationException("err");
             }
-        }
-    }
-
-    public class KeyStateArgs : EventArgs
-    {
-        public IKeypad State { get; }
-        public KeyStateArgs(IKeypad newState)
-        {
-            State = newState;
         }
     }
 

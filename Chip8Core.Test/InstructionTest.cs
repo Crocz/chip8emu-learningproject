@@ -1,9 +1,4 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Chip8Core.Test
 {
@@ -45,12 +40,10 @@ namespace Chip8Core.Test
 
         [TestMethod]
         public void XOR_Decode_Correct()
-        {
-            //var inst = new Instruction(InstructionType.XOR_Vx_Vy, 0b_0000_0100_0010_0000); // XOR op                     
+        {                        
             var inst = new Instruction(0b_1000_0100_0010_0011); // XOR op
             Assert.AreEqual(4, inst.XRegister);
-            Assert.AreEqual(2, inst.YRegister);
-            //var inst2 = new Instruction(0b_1000_0100_0010_0011); // XOR op               
+            Assert.AreEqual(2, inst.YRegister);         
         }
     }
 }
