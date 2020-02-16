@@ -3,10 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
-namespace Chip8Core {
+namespace Chip8Core
+{
     public sealed class Chip8Emu {
         private readonly IEmulatorHost Host;
 
@@ -29,7 +29,7 @@ namespace Chip8Core {
         private const int RAMSizeInBytes = 4096;
         //The first 512 bytes, from 0x000 to 0x1FF, are where the original interpreter was located, and should not be used by programs.
         private const ushort ProgramStart = 512;
-        private const ushort ETI660ProgramStart = 1536;
+        private const ushort ETI660ProgramStart = 1536; //TODO: Support ETI660
         
         //Registers         
         private byte[] registers = new byte[NumberOfGeneralPurposeRegisters];
@@ -110,8 +110,7 @@ namespace Chip8Core {
         }
 
         private void ManipulateCounters()
-        {
-            //IncreaseProgramCounter();
+        {            
             cpuTicksSinceLastTimerDecrease++;
             if(cpuTicksSinceLastTimerDecrease >= (chip8CpuClockSpeedHz / timerSpeedHz))
             {
@@ -146,7 +145,7 @@ namespace Chip8Core {
         private void ProcessInstruction() {
             Instruction instruction = GetInstruction();
             InstructionTable[instruction.Type].Invoke(instruction);
-            if(instruction.Type != InstructionType.JP_addr && instruction.Type != InstructionType.JP_V0_addr && instruction.Type != InstructionType.CALL_addr && instruction.Type != InstructionType.LD_Vx_K)
+            if(instruction.Type != InstructionType.JP_addr && instruction.Type != InstructionType.JP_V0_addr && instruction.Type != InstructionType.CALL_addr)
             {
                 IncreaseProgramCounter();
             }

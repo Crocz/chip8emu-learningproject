@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Chip8Core {
+namespace Chip8Core
+{
     public class Instruction {
         public InstructionType Type { get; }
         private readonly ushort argument;
         public ushort Address => argument;
         public byte XRegister => GetXVal(argument);
         public byte YRegister => GetYVal(argument);
-        public byte KKValue => GetKKVal(argument);
-        public byte HighestNibble => GetHighestNibble(argument);
+        public byte KKValue => GetKKVal(argument);        
         public byte LowestNibble => GetLowestNibble(argument);
 
         public Instruction(ushort data) : this(DecodeInstruction(data), GetLow12BitsArgument(data)) { }
