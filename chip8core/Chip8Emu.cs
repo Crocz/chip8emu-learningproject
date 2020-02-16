@@ -259,10 +259,6 @@ namespace Chip8Core {
         
         private void Draw(Instruction arg) {            
             byte[] sprite = new byte[arg.LowestNibble];
-            //for (int i = 0; i < arg.LowestNibble; ++i)
-            //{
-            //    sprite[i] = new BitArray(new[] { memory[i_register + i] });
-            //}
             Buffer.BlockCopy(memory, i_register, sprite, 0, arg.LowestNibble);
             var sprajt = sprite.Select(b => new BitArray(new[] { b })).ToArray();
             foreach(BitArray b in sprajt)
@@ -385,14 +381,14 @@ namespace Chip8Core {
         }
 
         private void LdVxI(Instruction arg) {
-            for(int i = 0; i < arg.XRegister; ++i)
+            for(int i = 0; i <= arg.XRegister; ++i)
             {
                 registers[i] = memory[i_register + i];
             }            
         }
 
         private void LdIVx(Instruction arg) {
-            for (int i = 0; i < arg.XRegister; ++i)
+            for (int i = 0; i <= arg.XRegister; ++i)
             {
                 memory[i_register + i] = registers[i];
             }
