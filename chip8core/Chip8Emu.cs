@@ -13,7 +13,6 @@ namespace Chip8Core {
         private int newKeysPressed; //incoming keypresses
         private int newKeysReleased; //incoming keyreleases
 
-        private int keysPressed; //keys pressed this emustep
         private int keysHeld; //keys held this emustep        
 
         private static readonly int chip8CpuClockSpeedHz = 540;
@@ -21,9 +20,6 @@ namespace Chip8Core {
         private static readonly Stopwatch stopwatch = new Stopwatch();
         private static int ticks = 0;
         private int cpuTicksSinceLastTimerDecrease;
-
-        private bool waitState; //an instruction to wait until keypress has triggered. Do not manipulate counters while true.
-        private byte keyPressStoreVar;
 
         //Chip-8 has 16 general purpose 8-bit registers,
         private const byte NumberOfGeneralPurposeRegisters = 16;
@@ -91,20 +87,10 @@ namespace Chip8Core {
 
         private void EmulateStep() {
             ticks++;
-            ReadInput();            
-            if (!waitState)
-            {
-                ManipulateCounters();
-                ProcessInstruction();                
-            }
-            else
-            {
-                if (keysPressed != 0)
-                {
-                    waitState = false;
-                    registers[keyPressStoreVar] = DetermineKeyPressValue(keysPressed);
-                }
-            }
+            ReadInput();                                    
+            ManipulateCounters();
+            ProcessInstruction();
+
             //sleep if ahead
             while(ticks > (stopwatch.Elapsed.TotalSeconds * chip8CpuClockSpeedHz))
             {
@@ -116,8 +102,7 @@ namespace Chip8Core {
         /// Update keypresses this emustep with incoming keypresses, and reset incoming keypresses.
         /// </summary>
         private void ReadInput()
-        {
-            keysPressed = newKeysPressed;
+        {            
             keysHeld |= newKeysPressed;
             keysHeld &= ~newKeysReleased;            
             newKeysPressed = 0;
@@ -214,9 +199,12 @@ namespace Chip8Core {
             delay_timer = registers[arg.XRegister];
         }
 
-        private void WaitKeyPressThenStore(Instruction arg) {
-            waitState = true;
-            keyPressStoreVar = arg.XRegister;
+        private void WaitKeyPressThenStore(Instruction arg) {            
+            while(newKeysPressed == 0)
+            {
+                Task.Delay(10).Wait();
+            }
+            registers[arg.XRegister] = DetermineKeyPressValue(newKeysPressed);
         }
 
         /// <summary>
