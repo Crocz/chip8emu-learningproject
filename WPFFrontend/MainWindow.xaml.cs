@@ -33,7 +33,8 @@ namespace WPFFrontend
             InitializeComponent();
             InitializeScreen();
             emu = new Chip8Emu(this);
-            string path = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Documents\chip8roms\Tetris [Fran Dachille, 1991].ch8");
+            //string path = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Documents\chip8roms\Tetris [Fran Dachille, 1991].ch8");
+            string path = Environment.ExpandEnvironmentVariables(@"%USERPROFILE%\Documents\chip8roms\test_opcode.ch8");
             byte[] rom = System.IO.File.ReadAllBytes(path);            
             this.KeyDown += new KeyEventHandler(OnButtonKeyDown);
             this.KeyUp += new KeyEventHandler(OnButtonKeyUp);            

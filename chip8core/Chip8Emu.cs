@@ -13,8 +13,8 @@ namespace Chip8Core {
         private int newKeysPressed; //incoming keypresses
         private int newKeysReleased; //incoming keyreleases
 
-        private int keysPressed; //keypresses this emustep
-        private int keysReleased; //keyreleases this emustep
+        private int keysPressed; //keys pressed this emustep
+        private int keysHeld; //keys held this emustep        
 
         private static readonly int chip8CpuClockSpeedHz = 540;
         private static readonly int timerSpeedHz = 60;
@@ -65,16 +65,11 @@ namespace Chip8Core {
         private void LoadSpritesIntoMemory()
         {
             int i = 0;
-            foreach(byte[] sprite in Sprites.Data) {
+            foreach(byte[] sprite in Sprites.List) {
                 Buffer.BlockCopy(sprite, 0, memory, spriteStorageStart + spriteSizeInBytes * i, spriteSizeInBytes);                
                 i++;
             }
         }
-
-        //private void SubscribeEvents()
-        //{
-        //    Host.KeyStateUpdated += this.ReadKeyState;
-        //}
 
         public int Run(byte[] rom) {
             //determine which speed to run rom at
@@ -99,8 +94,8 @@ namespace Chip8Core {
             ReadInput();            
             if (!waitState)
             {
-                ProcessInstruction();
                 ManipulateCounters();
+                ProcessInstruction();                
             }
             else
             {
@@ -123,7 +118,8 @@ namespace Chip8Core {
         private void ReadInput()
         {
             keysPressed = newKeysPressed;
-            keysReleased = newKeysReleased;
+            keysHeld |= newKeysPressed;
+            keysHeld &= ~newKeysReleased;            
             newKeysPressed = 0;
             newKeysReleased = 0;
         }
@@ -165,7 +161,7 @@ namespace Chip8Core {
         private void ProcessInstruction() {
             Instruction instruction = GetInstruction();
             InstructionTable[instruction.Type].Invoke(instruction);
-            if(instruction.Type != InstructionType.JP_addr && instruction.Type != InstructionType.JP_V0_addr && instruction.Type != InstructionType.CALL_addr)
+            if(instruction.Type != InstructionType.JP_addr && instruction.Type != InstructionType.JP_V0_addr && instruction.Type != InstructionType.CALL_addr && instruction.Type != InstructionType.LD_Vx_K)
             {
                 IncreaseProgramCounter();
             }
@@ -247,7 +243,7 @@ namespace Chip8Core {
 
         private void SkipIfNotPressed(Instruction arg) {
             var mask = Keypad.ByteToKeymask(registers[arg.XRegister]);
-            if((keysPressed & (int)mask) == 0)
+            if((keysHeld & (int)mask) == 0)
             {
                 IncreaseProgramCounter();
             }
@@ -255,7 +251,7 @@ namespace Chip8Core {
 
         private void SkipIfPressed(Instruction arg) {
             var mask = Keypad.ByteToKeymask(registers[arg.XRegister]);
-            if ((keysPressed & (int)mask) != 0)
+            if ((keysHeld & (int)mask) != 0)
             {
                 IncreaseProgramCounter();
             }

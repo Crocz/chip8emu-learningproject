@@ -4,17 +4,6 @@ using System.Linq;
 
 namespace Chip8Core
 {
-
-    public class SpriteData
-    {
-        public byte[] Data { get; }
-
-        public SpriteData(Sprite spr)
-        {
-            Data = Sprites.sprites[spr];
-        }
-    }
-
     public enum Sprite
     {
         _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _A, _B, _C, _D, _E, _F
@@ -25,7 +14,8 @@ namespace Chip8Core
     public static class Sprites
     {
         public static BitArray[] AsBitArray(Sprite s) => sprites[s].Select(line => new BitArray(new[] { line }).Reverse()).ToArray();
-        public static IEnumerable<byte[]> Data => sprites.Values;
+        public static IList<byte[]> List => GetSortedList();
+
         internal static readonly IReadOnlyDictionary<Sprite, byte[]> sprites = new Dictionary<Sprite, byte[]> { {        Sprite._0, new byte[] { 0b11110000,
                                                                                                                                         0b10010000,
                                                                                                                                         0b10010000,
@@ -122,6 +112,18 @@ namespace Chip8Core
                                                                                                                                         0b10000000,
                                                                                                                                         0b10000000, } },
         };
+
+        private static IList<byte[]> GetSortedList()
+        {
+            List<byte[]> retval = new List<byte[]>(sprites.Count);
+            var keys = sprites.Keys.ToList();
+            keys.Sort();
+            foreach (var key in keys)
+            {
+                retval.Add(sprites[key]);
+            }
+            return retval;
+        }
 
         private static BitArray Reverse(this BitArray indata)
         {
